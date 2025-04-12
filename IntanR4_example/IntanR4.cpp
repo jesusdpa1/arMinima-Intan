@@ -1,4 +1,5 @@
 #include "IntanR4.h"
+#include "FspTimer.h"
 
 // Default configuration values
 IntanConfig config = {
@@ -111,7 +112,8 @@ void intanInit(uint32_t sampleRate) {
     intanUpdateConfig(config);
 
     // Start the timer
-    samplingTimer.enable_interrupt();
+    samplingTimer.setup_overflow_irq();
+    samplingTimer.open();
     samplingTimer.start();
 }
 
@@ -141,7 +143,6 @@ void intanUpdateConfig(IntanConfig newConfig) {
 void intanReset() {
     // Stop the timer
     samplingTimer.stop();
-    samplingTimer.disable_interrupt();
 
     // Reset all variables
     for (int i = 0; i < 2; i++) {
@@ -163,7 +164,8 @@ void intanReset() {
     intanInitializeRegisters();
 
     // Restart the timer
-    samplingTimer.enable_interrupt();
+    samplingTimer.setup_overflow_irq();
+    samplingTimer.open();
     samplingTimer.start();
 }
 

@@ -3,6 +3,7 @@
 
 #include <SPI.h>
 #include <Wire.h>
+#include <FspTimer.h>
 
 #if defined(ARDUINO) && ARDUINO >= 100
     #include "Arduino.h"
