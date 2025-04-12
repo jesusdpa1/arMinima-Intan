@@ -503,7 +503,6 @@ void intanInitializeRegisters() {
 void intanSetChannelPower(bool ch1Power, bool ch2Power) {
     // Read current settings
     intanSendReadCommand(14);
-    intanSendReadCommand(14);
     uint8_t reg14 = intanSendReadCommand(14);
 
     intanSendReadCommand(15);
