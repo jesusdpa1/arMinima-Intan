@@ -35,10 +35,10 @@ public:
 };
 
 // SPI Pins for Arduino R4 Minima
-const int INTAN_CS_PIN = 10;
-const int INTAN_SCLK_PIN = 13;
-const int INTAN_MOSI_PIN = 11;
-const int INTAN_MISO_PIN = 12;
+#define INTAN_CS_PIN 10
+#define INTAN_SCLK_PIN 13
+#define INTAN_MOSI_PIN 11
+#define INTAN_MISO_PIN 12
 
 // Define constants for SPI commands
 #define WRITE_CMD_MASK     0x8000  // 1000 0000 0000 0000
@@ -47,9 +47,16 @@ const int INTAN_MISO_PIN = 12;
 #define CALIBRATE_CMD      0x5500  // 0101 0101 0000 0000
 #define READ_CMD_MASK      0xC000  // 1100 0000 0000 0000
 
-// Define channels
-#define CHANNEL_1          0
-#define CHANNEL_2          15
+// Define channels to match variant.h
+#define CHANNEL_1 0
+#define CHANNEL_2 15
+
+// Enumerations for bandwidths
+enum IntanBandwidth {
+    INTAN_BW_10HZ = 0,    // 10Hz low cutoff
+    INTAN_BW_1HZ = 1,     // 1Hz low cutoff
+    INTAN_BW_0_1HZ = 2    // 0.1Hz low cutoff
+};
 
 // Get/Set current notch filter type
 enum NotchFilterType { NOTCH_60HZ, NOTCH_50HZ, NOTCH_NONE };
@@ -71,13 +78,6 @@ void intanApplyNotchFilter60Hz(uint8_t channel);
 void intanApplyNotchFilter50Hz(uint8_t channel);
 void intanApplyNotchFilterNone(uint8_t channel);
 void intanProcessTimerEvent();
-
-// Enumerations for bandwidths
-enum IntanBandwidth {
-    INTAN_BW_10HZ = 0,    // 10Hz low cutoff
-    INTAN_BW_1HZ = 1,     // 1Hz low cutoff
-    INTAN_BW_0_1HZ = 2    // 0.1Hz low cutoff
-};
 
 // Set bandwidth cutoff
 void intanSetBandwidth(IntanBandwidth bandwidth);
