@@ -11,6 +11,9 @@
     #include "WProgram.h"
 #endif
 
+// Number of channels supported (can be increased as needed)
+#define NUM_CHANNELS 2
+
 // Configuration settings structure
 struct IntanConfig {
     bool lowGainMode;         // When enabled, scale signals down by a factor of 4
@@ -48,6 +51,10 @@ const int INTAN_MISO_PIN = 12;
 #define CHANNEL_1          0
 #define CHANNEL_2          15
 
+// Get/Set current notch filter type
+enum NotchFilterType { NOTCH_60HZ, NOTCH_50HZ, NOTCH_NONE };
+extern NotchFilterType notchFilter;
+
 // Function declarations
 void intanInit(uint32_t sampleRate = 5000);
 void intanUpdateConfig(IntanConfig newConfig);
@@ -57,6 +64,7 @@ uint16_t intanSendConvertCommand(uint8_t channelnum);
 uint16_t intanSendConvertCommandH(uint8_t channelnum);
 uint16_t intanSendWriteCommand(uint8_t regnum, uint8_t data);
 void intanCalibrate();
+int16_t intanReadRawChannelData(uint8_t channelnum);
 int16_t intanReadChannelData(uint8_t channelnum);
 int32_t intanReadAccumulatorData(uint8_t channelnum);
 void intanApplyNotchFilter60Hz(uint8_t channel);
@@ -77,7 +85,8 @@ void intanSetBandwidth(IntanBandwidth bandwidth);
 // Initialize registers with specific settings
 void intanInitializeRegisters();
 
-// Set channel power
-void intanSetChannelPower(bool ch1Power, bool ch2Power);
+// Set channel power - two versions for flexibility
+void intanSetChannelPower(bool ch1Power, bool ch2Power); // Legacy version
+void intanSetChannelPower(bool* channelPowerSettings, int numChannels); // New scalable version
 
 #endif // INTAN_R4_H

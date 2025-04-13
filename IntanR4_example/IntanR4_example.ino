@@ -6,14 +6,17 @@ String serialBuffer = "";
 bool serialComplete = false;
 
 // Sampling rate
-const uint32_t SAMPLE_RATE_HZ = 5000;
+const uint32_t SAMPLE_RATE_HZ = 2000;
 
 // Buffer for serial output
-char outputBuffer[100];
+char outputBuffer[1000];
 
 // Counter for data output rate limiting
 uint32_t outputCounter = 0;
-const uint32_t OUTPUT_DIVIDER = 5; // Output every 5th sample (1kHz output rate at 5kHz sampling)
+const uint32_t OUTPUT_DIVIDER = 2; // Output every 5th sample (1kHz output rate at 5kHz sampling)
+
+// Flag for checking if serial commands have been received
+volatile bool serialInterruptOccurred = false;
 
 void setup() {
   // Initialize serial communication
@@ -35,67 +38,74 @@ void setup() {
   Serial.println("  status             - Display current settings");
   Serial.println("  reset              - Reset the system");
 
-  // Configure with default settings
-  // For 10Hz lower cutoff
-
   // Initialize the Intan system with 5kHz sample rate
   Serial.print("Initializing Intan RHD2216 at ");
   Serial.print(SAMPLE_RATE_HZ);
   Serial.println(" Hz...");
 
   intanInit(SAMPLE_RATE_HZ);
+  // Default config to apply notch filter and other defaults
+  config.lowGainMode = false;
+  config.averageEnergyMode = false;
+  config.notchEnabled = true;   // ✅ Enable notch filter by default
+  config.notch60Hz = true;      // ✅ Use 60Hz notch
+  config.thresholdValue = 10;
+  config.channel1Enabled = true;
+  config.channel2Enabled = true;
 
+  intanUpdateConfig(config);
   // Set 10Hz bandwidth (default)
   intanSetBandwidth(INTAN_BW_10HZ);
 
   Serial.println("Initialization complete.");
   Serial.println("Ready to receive commands.");
 }
-
 void loop() {
-  // Process any serial commands
+  // Check for any available serial data directly
+  if (Serial.available() > 0) {
+    char inChar = (char)Serial.read();
+    
+    // Add character to buffer unless it's a line ending
+    if (inChar != '\n' && inChar != '\r') {
+      serialBuffer += inChar;
+    }
+    
+    // If we get a newline, set the complete flag
+    if (inChar == '\n' || inChar == '\r') {
+      serialComplete = true;
+    }
+  }
+
+  // Process any serial commands with higher priority
   if (serialComplete) {
+    Serial.print("Processing command: ");
+    Serial.println(serialBuffer);
     processCommand();
     serialBuffer = "";
     serialComplete = false;
   }
-
-  // Output the channel data at a reduced rate (for readability)
   outputCounter++;
+  // Replace the existing output code with this
   if (outputCounter >= OUTPUT_DIVIDER) {
     outputCounter = 0;
 
     // Read channel data
     int16_t data1 = intanReadChannelData(CHANNEL_1);
     int16_t data2 = intanReadChannelData(CHANNEL_2);
-
+    
+    // Read raw data (if available in your implementation)
+    // If raw data isn't directly accessible, you might need to add a function to access it
+    int16_t rawData1 = intanReadRawChannelData(CHANNEL_1);  // You'd need to implement this function
     // Calculate voltage in microvolts (LSB = 0.195 µV)
     float uV1 = data1 * 0.195f;
     float uV2 = data2 * 0.195f;
-
-    // Format the output string
-    snprintf(outputBuffer, sizeof(outputBuffer), "%d,%d,%.2f,%.2f",
-             data1, data2, uV1, uV2);
-
+    
+    // Format the output string to include both raw and filtered data
+    snprintf(outputBuffer, sizeof(outputBuffer), "%d,%d,%d,%d,%.2f,%.2f",
+            rawData1, data1, data2, uV1, uV2);
+    
     // Send via serial
     Serial.println(outputBuffer);
-  }
-}
-
-// Serial event handler - collects incoming data into a buffer
-void serialEvent() {
-  while (Serial.available()) {
-    char inChar = (char)Serial.read();
-
-    // Add character to buffer unless it's a line ending
-    if (inChar != '\n' && inChar != '\r') {
-      serialBuffer += inChar;
-    }
-
-    // If we get a newline, set the complete flag
-    if (inChar == '\n' || inChar == '\r') {
-      serialComplete = true;
-    }
   }
 }
 
@@ -258,9 +268,9 @@ void processCommand() {
     // Reset to default configuration
     config.lowGainMode = false;
     config.averageEnergyMode = false;
-    config.notchEnabled = true;
-    config.notch60Hz = true;
-    config.thresholdValue = 500;
+    config.notchEnabled = true;  // Changed to true to match default in .cpp
+    config.notch60Hz = true;     // Changed to true to match default in .cpp
+    config.thresholdValue = 10;
     config.channel1Enabled = true;
     config.channel2Enabled = false;
 
