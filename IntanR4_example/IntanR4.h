@@ -4,6 +4,7 @@
 #include <SPI.h>
 #include <Wire.h>
 #include <FspTimer.h>
+#include "filter.h"  // Include the filter header
 
 #if defined(ARDUINO) && ARDUINO >= 100
     #include "Arduino.h"
@@ -35,10 +36,10 @@ public:
 };
 
 // SPI Pins for Arduino R4 Minima
-#define INTAN_CS_PIN 10
-#define INTAN_SCLK_PIN 13
-#define INTAN_MOSI_PIN 11
-#define INTAN_MISO_PIN 12
+const int INTAN_CS_PIN = 10;
+const int INTAN_SCLK_PIN = 13;
+const int INTAN_MOSI_PIN = 11;
+const int INTAN_MISO_PIN = 12;
 
 // Define constants for SPI commands
 #define WRITE_CMD_MASK     0x8000  // 1000 0000 0000 0000
@@ -47,23 +48,21 @@ public:
 #define CALIBRATE_CMD      0x5500  // 0101 0101 0000 0000
 #define READ_CMD_MASK      0xC000  // 1100 0000 0000 0000
 
-// Define channels to match variant.h
-#define CHANNEL_1 0
-#define CHANNEL_2 15
-
-// Enumerations for bandwidths
-enum IntanBandwidth {
-    INTAN_BW_10HZ = 0,    // 10Hz low cutoff
-    INTAN_BW_1HZ = 1,     // 1Hz low cutoff
-    INTAN_BW_0_1HZ = 2    // 0.1Hz low cutoff
-};
+// Define channels
+#define CHANNEL_1          0
+#define CHANNEL_2          15
 
 // Get/Set current notch filter type
 enum NotchFilterType { NOTCH_60HZ, NOTCH_50HZ, NOTCH_NONE };
 extern NotchFilterType notchFilter;
 
+// Filter coefficients for 50Hz and 60Hz notch filters
+extern FilterCoeff notch50HzCoeff;
+extern FilterCoeff notch60HzCoeff;
+
 // Function declarations
 void intanInit(uint32_t sampleRate = 5000);
+void intanInitFilters(uint32_t sampleRate);
 void intanUpdateConfig(IntanConfig newConfig);
 void intanReset();
 uint16_t intanSendReadCommand(uint8_t regnum);
@@ -74,10 +73,15 @@ void intanCalibrate();
 int16_t intanReadRawChannelData(uint8_t channelnum);
 int16_t intanReadChannelData(uint8_t channelnum);
 int32_t intanReadAccumulatorData(uint8_t channelnum);
-void intanApplyNotchFilter60Hz(uint8_t channel);
-void intanApplyNotchFilter50Hz(uint8_t channel);
-void intanApplyNotchFilterNone(uint8_t channel);
+void intanApplyNotchFilter(uint8_t channel, NotchFilterType filterType);
 void intanProcessTimerEvent();
+
+// Enumerations for bandwidths
+enum IntanBandwidth {
+    INTAN_BW_10HZ = 0,    // 10Hz low cutoff
+    INTAN_BW_1HZ = 1,     // 1Hz low cutoff
+    INTAN_BW_0_1HZ = 2    // 0.1Hz low cutoff
+};
 
 // Set bandwidth cutoff
 void intanSetBandwidth(IntanBandwidth bandwidth);
