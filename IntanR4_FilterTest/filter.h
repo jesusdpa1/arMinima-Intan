@@ -41,6 +41,9 @@ public:
     // Get the current sampling rate
     static uint32_t getSamplingRate();
 
+    // Diagnostic function to print filter coefficients
+    static void printFilterCoefficients(const FilterCoeff& coeff);
+
 private:
     static uint32_t _samplingRate;
 };

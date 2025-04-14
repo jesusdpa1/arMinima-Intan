@@ -1,3 +1,4 @@
+// filter.cpp
 #include "filter.h"
 #include <math.h>
 
@@ -14,85 +15,66 @@ uint32_t Filter::getSamplingRate() {
     return _samplingRate;
 }
 
-// Calculate notch filter coefficients for 50Hz or 60Hz
+// Calculate true notch filter coefficients
 FilterCoeff Filter::calculateNotchCoeff(FilterType type, float Q) {
     FilterCoeff coeff;
 
     // Select the notch frequency
     float f0 = (type == FILTER_NOTCH_50HZ) ? 50.0f : 60.0f;
 
-    // Normalize frequency to sampling rate
-    float omega = 2.0f * M_PI * f0 / _samplingRate;
-    float alpha = sin(omega) / (2.0f * Q);
+    // Normalized frequency
+    float w0 = 2.0f * M_PI * f0 / _samplingRate;
+    
+    // Compute sine and cosine of normalized frequency
+    float cosw0 = cos(w0);
+    float sinw0 = sin(w0);
 
-    // Calculate coefficients for a notch filter
-    float a0 = 1.0f + alpha;
-    coeff.b0 = (1.0f + alpha) / a0;
-    coeff.b1 = (-2.0f * cos(omega)) / a0;
-    coeff.b2 = (1.0f + alpha) / a0;
-    coeff.a1 = (-2.0f * cos(omega)) / a0;
-    coeff.a2 = (1.0f - alpha) / a0;
+    // Compute alpha (bandwidth)
+    float alpha = sinw0 / (2.0f * Q);
 
-    return coeff;
-}
-
-// Calculate high-pass filter coefficients
-FilterCoeff Filter::calculateHighPassCoeff(float cutoffFreq, float Q) {
-    FilterCoeff coeff;
-
-    // Normalize frequency to sampling rate
-    float omega = 2.0f * M_PI * cutoffFreq / _samplingRate;
-    float alpha = sin(omega) / (2.0f * Q);
-
-    // Calculate coefficients for a high-pass filter
-    float a0 = 1.0f + alpha;
-    coeff.b0 = (1.0f + cos(omega)) / (2.0f * a0);
-    coeff.b1 = -(1.0f + cos(omega)) / a0;
-    coeff.b2 = (1.0f + cos(omega)) / (2.0f * a0);
-    coeff.a1 = (-2.0f * cos(omega)) / a0;
-    coeff.a2 = (1.0f - alpha) / a0;
+    // True notch filter coefficients
+    // The key is to create a filter that effectively cancels out the specific frequency
+    coeff.b0 = 1.0f / (1.0f + alpha);
+    coeff.b1 = -2.0f * cosw0 / (1.0f + alpha);
+    coeff.b2 = 1.0f / (1.0f + alpha);
+    coeff.a1 = -2.0f * cosw0 / (1.0f + alpha);
+    coeff.a2 = (1.0f - alpha) / (1.0f + alpha);
 
     return coeff;
 }
 
-// Calculate low-pass filter coefficients
-FilterCoeff Filter::calculateLowPassCoeff(float cutoffFreq, float Q) {
-    FilterCoeff coeff;
-
-    // Normalize frequency to sampling rate
-    float omega = 2.0f * M_PI * cutoffFreq / _samplingRate;
-    float alpha = sin(omega) / (2.0f * Q);
-
-    // Calculate coefficients for a low-pass filter
-    float a0 = 1.0f + alpha;
-    coeff.b0 = ((1.0f - cos(omega)) / 2.0f) / a0;
-    coeff.b1 = (1.0f - cos(omega)) / a0;
-    coeff.b2 = ((1.0f - cos(omega)) / 2.0f) / a0;
-    coeff.a1 = (-2.0f * cos(omega)) / a0;
-    coeff.a2 = (1.0f - alpha) / a0;
-
-    return coeff;
-}
-
-// Apply filter to a single sample
+// Apply filter to a single sample using Direct Form II Transposed
 float Filter::applySample(float input, float* x, float* y, const FilterCoeff& coeff) {
-    // Update input buffer (x[0] is newest, x[2] is oldest)
+    // Shift input buffer
     x[2] = x[1];
     x[1] = x[0];
     x[0] = input;
 
-    // Calculate output
-    float output = coeff.b0 * x[0] + coeff.b1 * x[1] + coeff.b2 * x[2] -
-                   coeff.a1 * y[1] - coeff.a2 * y[2];
-
-    // Update output buffer (y[0] is newest, y[2] is oldest)
+    // Shift output buffer
     y[2] = y[1];
-    y[1] = output;
+    y[1] = y[0];
 
-    return output;
+    // Calculate output
+    y[0] = coeff.b0 * x[0] + 
+           coeff.b1 * x[1] + 
+           coeff.b2 * x[2] - 
+           coeff.a1 * y[1] - 
+           coeff.a2 * y[2];
+
+    return y[0];
 }
 
 // Apply entire filter (convenience wrapper)
 float Filter::apply(float input, float* inputBuffer, float* outputBuffer, const FilterCoeff& coeff) {
     return applySample(input, inputBuffer, outputBuffer, coeff);
+}
+
+// Diagnostic function to help understand filter behavior
+void Filter::printFilterCoefficients(const FilterCoeff& coeff) {
+    Serial.println("Notch Filter Coefficients:");
+    Serial.print("b0: "); Serial.println(coeff.b0, 6);
+    Serial.print("b1: "); Serial.println(coeff.b1, 6);
+    Serial.print("b2: "); Serial.println(coeff.b2, 6);
+    Serial.print("a1: "); Serial.println(coeff.a1, 6);
+    Serial.print("a2: "); Serial.println(coeff.a2, 6);
 }

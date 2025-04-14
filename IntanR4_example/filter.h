@@ -5,7 +5,6 @@
 
 // Filter types
 enum FilterType {
-    FILTER_NOTCH_50HZ,
     FILTER_NOTCH_60HZ,
     FILTER_HIGHPASS,
     FILTER_LOWPASS
@@ -23,8 +22,8 @@ public:
     // Initialize the filter with sampling rate
     static void init(uint32_t samplingRate);
 
-    // Calculate notch filter coefficients for 50Hz or 60Hz
-    static FilterCoeff calculateNotchCoeff(FilterType type, float Q = 30.0f);
+    // Calculate 60Hz notch filter coefficients
+    static FilterCoeff calculateNotchCoeff(float Q = 30.0f);
 
     // Calculate high-pass filter coefficients
     static FilterCoeff calculateHighPassCoeff(float cutoffFreq, float Q = 0.7071f);
@@ -40,6 +39,9 @@ public:
 
     // Get the current sampling rate
     static uint32_t getSamplingRate();
+
+    // Diagnostic function to print filter coefficients
+    static void printFilterCoefficients(const FilterCoeff& coeff);
 
 private:
     static uint32_t _samplingRate;

@@ -26,7 +26,6 @@ void setup() {
   config.lowGainMode = false;
   config.averageEnergyMode = false;
   config.notchEnabled = true;   // Enable notch filter by default
-  config.notch60Hz = true;      // Use 60Hz notch
   config.thresholdValue = 10;
   config.channel1Enabled = true;
   config.channel2Enabled = true;

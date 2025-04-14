@@ -20,7 +20,6 @@ struct IntanConfig {
     bool lowGainMode;         // When enabled, scale signals down by a factor of 4
     bool averageEnergyMode;   // Whether to display energy over time or raw data
     bool notchEnabled;        // Whether notch filter is enabled
-    bool notch60Hz;           // If true, 60Hz; if false, 50Hz
     int thresholdValue;       // Threshold for detecting activity
     bool channel1Enabled;     // Enable/disable first channel
     bool channel2Enabled;     // Enable/disable second channel
@@ -52,12 +51,7 @@ const int INTAN_MISO_PIN = 12;
 #define CHANNEL_1          0
 #define CHANNEL_2          15
 
-// Get/Set current notch filter type
-enum NotchFilterType { NOTCH_60HZ, NOTCH_50HZ, NOTCH_NONE };
-extern NotchFilterType notchFilter;
-
-// Filter coefficients for 50Hz and 60Hz notch filters
-extern FilterCoeff notch50HzCoeff;
+// Notch filter type
 extern FilterCoeff notch60HzCoeff;
 
 // Function declarations
@@ -73,7 +67,7 @@ void intanCalibrate();
 int16_t intanReadRawChannelData(uint8_t channelnum);
 int16_t intanReadChannelData(uint8_t channelnum);
 int32_t intanReadAccumulatorData(uint8_t channelnum);
-void intanApplyNotchFilter(uint8_t channel, NotchFilterType filterType);
+void intanApplyNotchFilter(uint8_t channel);
 void intanProcessTimerEvent();
 
 // Enumerations for bandwidths

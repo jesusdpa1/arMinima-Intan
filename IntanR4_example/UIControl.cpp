@@ -14,17 +14,17 @@ char UIControl::outputBuffer[1000];
 // Initialize the UI control with a baud rate
 void UIControl::init(unsigned long baudRate) {
     serialBaudRate = baudRate;
-    
+
     // Initialize serial communication
     Serial.begin(serialBaudRate);
     while (!Serial) {
         ; // Wait for serial port to connect
     }
-    
+
     // Set up serial event
     serialBuffer = "";
     serialComplete = false;
-    
+
     // Print welcome message
     printWelcomeMessage();
 }
@@ -33,21 +33,21 @@ void UIControl::init(unsigned long baudRate) {
 void UIControl::update() {
     // Add a small delay to allow for serial processing
     delayMicroseconds(500);
-    
+
     // Check for any available serial data
     while (Serial.available() > 0) {
         char inChar = (char)Serial.read();
-        
+
         // Add character to buffer unless it's a line ending
         if (inChar != '\n' && inChar != '\r') {
             serialBuffer += inChar;
         }
-        
+
         // If we get a newline, set the complete flag
         if (inChar == '\n' || inChar == '\r') {
             serialComplete = true;
         }
-        
+
         // Small delay to allow processing
         delayMicroseconds(100);
     }
@@ -72,21 +72,21 @@ void UIControl::outputData() {
         // Read channel data
         int16_t data1 = intanReadChannelData(CHANNEL_1);
         int16_t data2 = intanReadChannelData(CHANNEL_2);
-        
+
         // Read raw data
         int16_t rawData1 = intanReadRawChannelData(CHANNEL_1);
-        
+
         // Calculate voltage in microvolts (LSB = 0.195 µV)
         float uV1 = data1 * 0.195f;
         float uV2 = data2 * 0.195f;
-        
+
         // Format the output string
         snprintf(outputBuffer, sizeof(outputBuffer), "%d,%d,%d,%.2f,%.2f",
                 rawData1, data1, data2, uV1, uV2);
-        
+
         // Send via serial
         Serial.println(outputBuffer);
-        
+
         // Small delay after sending data to ensure it's processed
         delayMicroseconds(100);
     }
@@ -95,7 +95,7 @@ void UIControl::outputData() {
 // Set the sampling rate for data output dividing
 void UIControl::setSampleRate(uint32_t sampleRate) {
     sampleRateHz = sampleRate;
-    
+
     // Adjust output divider based on sample rate to maintain reasonable output rate
     if (sampleRate <= 2000) {
         outputDivider = 2;  // Output at half the sample rate for low rates
@@ -149,26 +149,6 @@ void UIControl::processCommand(String command) {
         }
         else {
             Serial.println("Invalid parameter. Use 'notch [on|off]'");
-        }
-    }
-
-    // Command: notch60 [on|off]
-    else if (command.startsWith("notch60 ")) {
-        String param = command.substring(8);
-        param.trim();
-
-        if (param == "on") {
-            config.notch60Hz = true;
-            intanUpdateConfig(config);
-            Serial.println("Notch filter set to 60Hz");
-        }
-        else if (param == "off") {
-            config.notch60Hz = false;
-            intanUpdateConfig(config);
-            Serial.println("Notch filter set to 50Hz");
-        }
-        else {
-            Serial.println("Invalid parameter. Use 'notch60 [on|off]'");
         }
     }
 
@@ -242,7 +222,6 @@ void UIControl::processCommand(String command) {
         config.lowGainMode = false;
         config.averageEnergyMode = false;
         config.notchEnabled = true;
-        config.notch60Hz = true;
         config.thresholdValue = 10;
         config.channel1Enabled = true;
         config.channel2Enabled = true;
@@ -253,7 +232,7 @@ void UIControl::processCommand(String command) {
 
         Serial.println("Reset complete.");
     }
-    
+
     // Command: testfilter - test notch filter with synthetic signal
     else if (command == "testfilter") {
         runFilterTest();
@@ -267,23 +246,26 @@ void UIControl::processCommand(String command) {
     }
 }
 
-// Run filter test with synthetic signal
 void UIControl::runFilterTest() {
     Serial.println("Running filter test with synthetic 60Hz signal...");
     
+    // Ensure sampling rate is set correctly
+    // This should match the actual sampling rate used in intanInit()
+    Filter::init(sampleRateHz);  
+
     // Create a synthetic 60Hz signal with some noise
-    const int numSamples = 200;
+    const int numSamples = 2000;
     int16_t testSignal[numSamples];
     
-    // Generate a 60Hz sine wave with noise
+    // Generate a 60Hz sine wave with a 10Hz component
     for (int i = 0; i < numSamples; i++) {
         float t = (float)i / sampleRateHz;
         // 60Hz component (1000 amplitude)
         float signal = 1000.0f * sin(2.0f * PI * 60.0f * t);
-        // Additional noise (200 amplitude)
-        float noise = 200.0f * sin(2.0f * PI * 120.0f * t) + 
-                     150.0f * sin(2.0f * PI * 180.0f * t);
-        testSignal[i] = (int16_t)(signal + noise);
+        // Additional 10Hz component (500 amplitude)
+        float lowFreqSignal = 500.0f * sin(2.0f * PI * 10.0f * t);
+        
+        testSignal[i] = (int16_t)(signal + lowFreqSignal);
     }
     
     // Create buffers for filtering
@@ -291,8 +273,8 @@ void UIControl::runFilterTest() {
     float outBuf[3] = {0, 0, 0};
     int16_t filteredSignal[numSamples];
     
-    // Get the appropriate filter coefficients
-    FilterCoeff coeff = (config.notch60Hz) ? notch60HzCoeff : notch50HzCoeff;
+    // Get the 60Hz notch filter coefficients
+    FilterCoeff coeff = Filter::calculateNotchCoeff();
     
     // Apply the filter and output the results
     Serial.println("Original,Filtered");
@@ -317,7 +299,6 @@ void UIControl::printWelcomeMessage() {
     Serial.println("Available commands:");
     Serial.println("  gain [high|low]    - Set gain mode");
     Serial.println("  notch [on|off]     - Enable/disable notch filter");
-    Serial.println("  notch60 [on|off]   - Set notch filter to 60Hz (on) or 50Hz (off)");
     Serial.println("  threshold [value]  - Set threshold value (0-1023)");
     Serial.println("  channel1 [on|off]  - Enable/disable channel 1");
     Serial.println("  channel2 [on|off]  - Enable/disable channel 2");
@@ -337,9 +318,6 @@ void UIControl::printStatus() {
 
     Serial.print("Notch filter: ");
     Serial.println(config.notchEnabled ? "ENABLED" : "DISABLED");
-
-    Serial.print("Notch frequency: ");
-    Serial.println(config.notch60Hz ? "60Hz" : "50Hz");
 
     Serial.print("Threshold: ");
     Serial.println(config.thresholdValue);
